@@ -1,0 +1,35 @@
+coverage: coverage.o
+	nvcc -o coverage -arch compute_12 coverage.o
+
+coverage.o: coverage.cu
+	nvcc -c -arch compute_12 coverage.cu
+
+danckwerts: danckwerts.o
+	nvcc -o danckwerts danckwerts.o
+
+danckwerts.o: danckwerts.cu
+	nvcc -c danckwerts.cu
+
+coverage_rand: coverage_rand.o
+	nvcc -o coverage coverage_rand.o -lcurand_static
+
+coverage_rand.o: coverage_rand.cu
+	nvcc -c coverage_rand.cu
+
+coverage_only: coverage_only.o
+	nvcc -o coverage coverage_only.o
+
+coverage_only.o: coverage_only.cu
+	nvcc -c coverage_only.cu
+
+clean:
+	-rm coverage
+	-rm danckwerts
+	-rm *.o
+
+cleanoutput:
+	-rm *.o[0-9][0-9]*
+	-rm *.e[0-9][0-9]*
+	-rm *.out
+
+
