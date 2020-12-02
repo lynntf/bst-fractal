@@ -11,32 +11,6 @@
 
     Outputs: 
         file containing header data and output image
-
-    Editing History:
-        06/14/2016: Initial draft
-        06/22/2016: Updated to cartesian, commented code
-        07/05/2016: Changed to a 'histogram' image type output (looks pretty)
-        07/25/2016: Reduced number of working blocks
-                    Drastically reduced working memory by writing to array more often
-        08/17/2016: Changed to seeding points in current view and marking them when they hit the border.
-                    This allows deep zooms, but resolution isn't great since you have to rotate
-            so many points, and the system still takes a long time to evolve small detail.
-        07/06/2017: Several edits have happened. Rotation kernel function has been refined to do the
-                    proper sequence of rotations (previously was incorrect). Various code cleanups.
-        07/07/2017: Add in a Danckwerts feature so that the two codes don't need to be separate. This
-                    entails changing markers to doubles and adding a new switch.
-        11/18/2020: Update and cleanup code. Rename, indent, etc. for publication on Github
-
-    Notes:
-        [ ] Randomization code (add random noise to cuts) requires either sine and cosine to be computed
-            on the device or use of an angle addition formula (since noise will be small, sin(x) ~ x and 
-            cos(x) ~ 1). Exisitng randomization code uses computed sine and cosine values at each step.
-            Could incorporate that functionailty here.
-        [ ] Square Lambert projection was accidentally overwritten. Not particularly useful here though.
-        [ ] Implementation of the non-half full tumbler was something Lachlan did for his work. Could be
-            worthwhile to incorporate that here, but requires moving to spherical (cylindrical) coordinates
-            instead of cartesian (because rotation amount is not identical everywhere).
-        [ ] Implementing the continuum model should be done separately (if at all)
  */
 
 // Program requires access to math.h and cuda.h
