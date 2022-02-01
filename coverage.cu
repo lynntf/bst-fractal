@@ -1,5 +1,5 @@
 /*
-    Bi-axial Spherical Tumbler Peice-wise Isometry
+    Bi-axial Spherical Tumbler Peicewise Isometry
         with Point Tracing and Tunable Axes
         Zooming in on the exceptional set
     
@@ -19,7 +19,6 @@
 #include <math.h>
 #include <time.h>
 #include <cuda.h>
-#include <curand.h>
 
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
@@ -42,34 +41,42 @@ __device__ static double dev_Cg;
 __device__ static int    dev_half_iter;
 
 /*
-void rotate(int t, double* x, double* y, double* z, double theta, int tnext)
+void rotate(int t, double* x, double* y, double* z,
+            double* marker1, double* marker2,
+            int doprojection, int* phi, int* used)
 
-This function rotates points for the biaxial spherical tumbler PWI in reverse order.
+This function rotates points according to the inverse BST PWI.
 
 Inputs:
-    int     t            The iteration steps to take.
-    double* x            The array where x values are stored.
-    double* z            The array where z values are stored.
-    int*    marker1      Storage for color 1.
-    int*    marker2      Storage for color 2.
-    int     doprojection Label for the type of projection to do.
-    int*    phi          Coverage (fraction of used points). Only used if returning just the coverage.
-    int*    used         Counts the number of used points for computing the coverage.
+    int     t            The number of iterations.
+    double* x            Vector of x locations of seed points.
+    double* z            Vector of z locations of seed points.
+    int*    marker1      Register 1.
+    int*    marker2      Register 2.
+    int     doprojection Type of projection from grid to sphere.
+    int*    phi          Coverage (fraction of used points). Only used if 
+                         returning just the coverage.
+    int*    used         Counts the number of used points for computing
+                         the coverage.
 
 Outputs:
-    Alters *marker1      The output array stores the information in marker1 at the x and z indices.
-    Alters *marker2      The output array stores the information in marker2 at the x and z indices.
-    Alters *phi          Outputs the coverage if just returning the coverage.
-    Alters *used         Outputs which pixels have been used for computing the coverage.
+    Alters *marker1      The output array stores the information in
+                         marker1 at the x and z indices.
+    Alters *marker2      The output array stores the information in
+                         marker2 at the x and z indices.
+    Alters *phi          Outputs the coverage if just returning the
+                         coverage.
+    Alters *used         Outputs which pixels have been used for
+                         computing the coverage.
  */
 
-__global__ void rotate(int t, double* x, double* z, double* marker1, double* marker2, int doprojection, int* phi, int* used) {
+__global__ void rotate(int t, double* x, double* z, double* marker1,
+                        double* marker2, int doprojection, int* phi,
+                        int* used) {
     // Get the global index of the GPU core
     int gi = threadIdx.x + blockIdx.x * blockDim.x;
-
     // Protect un-initialized regions of the data
     if (gi < dev_res*dev_res) {
-    
         // Store local copies of z and y
         double xl = x[gi/dev_res];
         double zl = z[gi%dev_res];
@@ -80,14 +87,14 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
         double marker1_l = 0;
         double marker2_l = 0;
 
-
         // Remove points that are outside the domain
         int outside = 0;
         if (xl*xl + zl*zl >1) {
             done1 = 1;
             done2 = 1;
             outside = 1;
-            if (dev_histogram == 8) { // Count the number of grid points inside
+            if (dev_histogram == 8) { // Count the number of grid
+                                      // points inside unit circle
                 atomicAdd(used,1);
             }
         }
@@ -125,12 +132,10 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
         
         // Calculate the initial y-value
         double yl = -sqrt(abs(1 - xl*xl - zl*zl));
-
         // Initial positions
         double xl0 = xl;
         double zl0 = zl;
         double yl0 = yl;
-
         // Initialize two counters
         int count1 = 0;
         int count2 = 0;
@@ -161,32 +166,27 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
                 marker1_l = 10;
                 break;
         }
-
-
-
         ////////////////////////
         // Do several iterations
         ////////////////////////
         int k = 0;
         // k goes from 0 to t-1 as long as one color isn't done
         for(k = 0; (k < t) & (!done1 | !done2); k++) {
-
-
             temp = xl;
             // Rotate the axes back
             xl =   xl * dev_Cg  -  zl * dev_Sg;
             zl = temp * dev_Sg  +  zl * dev_Cg;
             
-
-            if (k > 0 || dev_half_iter == 0) {  // Skip this rotation for k==0 when a half-iteration is specified (otherwise execute)
-                // Store an extra copy of y so that it is not overwritten during computation
+            // Skip this rotation for k==0 when a half-iteration is
+            // specified (otherwise execute).
+            if (k > 0 || dev_half_iter == 0) {  
                 temp = yl;
-                
                 // Do the backwards rotation about x
                 yl =   yl * dev_Cb  -  xl * dev_Sb;
                 xl = temp * dev_Sb  +  xl * dev_Cb;
                 
-                // Flip the point over if it went past the edge (periodic boundary)
+                // Flip the point over if it went past the edge (periodic
+                // boundary)
                 if (yl*temp < 0) {
                 yl = -yl;
                 xl = -xl;
@@ -210,16 +210,26 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
                             marker1_l++;
                         }
                         break;
-                    case 2 : // Iteration where point returns to initial position
-                        if (sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) + (yl-yl0)*(yl-yl0)) < dev_thresh & !done1) { // If Euclidean distance is less than the threshold value, consider returned
+                    case 2 : // Iteration where point returns to initial
+                             // position
+                        if (sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) +
+                            (yl-yl0)*(yl-yl0)) < dev_thresh & !done1) {
+                            // If Euclidean distance is less than
+                            // the threshold value, consider
+                            // returned
                             marker1_l = k+1;
                             done1 = 1;
                         }
                         break;
-                    case 3 : // Anglular position of interaction with boundary
-                        if (abs(yl) < dev_thresh & !done1) { // Check if near the discontinuity
-                            temp = 0.5*(zl/(sqrt(xl*xl + zl*zl)) + 1); // This is an angular position? Doesn't look like it. If there was an acos or atan2, then it would maybe make sense? Must need post-processing
-                            marker1_l = (temp > marker1_l) ? marker1_l : temp;
+                    case 3 : // Anglular position of interaction with
+                             // boundary
+                        if (abs(yl) < dev_thresh & !done1) {
+                            // Check if near the discontinuity
+                            temp = 0.5*(zl/(sqrt(xl*xl + zl*zl)) + 1);
+                            // Rescale z -> [0,1] and post process
+                            // to get angular position
+                            marker1_l = (temp > marker1_l) ?
+                                             marker1_l : temp;
                         }
                         break;
                     case 4: // Distance to boundary
@@ -231,28 +241,39 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
                         break;
                     case 8 : // Just coverage
                         if (abs(yl) < dev_thresh & !done1) {
-                            // int* temp = &dev_phi;
                             atomicAdd(phi, 1);
                             done1 = 1;
                             done2 = 1;
                         }
                         break;
                     case 9 : // min dist to cutting line
-                        marker1_l = (asin(abs(yl)) < marker1_l) ? asin(abs(yl)) : marker1_l;
+                        marker1_l = (asin(abs(yl)) < marker1_l) ?
+                                        asin(abs(yl)) : marker1_l;
                         break;
 
-                    case 10 : // Last iteration passing close to the boundary
+                    case 10 : // Last iteration passing close to 
+                              // the boundary
                         if (abs(yl) < dev_thresh & !done1) {
                             marker1_l = k+1;
                         }
                         break;
                 
                     case 11 : // Count of returns to initial position
-                        // if (sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) + (yl-yl0)*(yl-yl0)) < dev_thresh & !done1) { // If Euclidean distance is less than the threshold value, consider returned
-                        //   marker1_l++;
-                        // }
-                        // Sum up the distance to the initial point
-                        marker1_l = marker1_l + sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) + (yl-yl0)*(yl-yl0));
+                        if (sqrt((xl-xl0)*(xl-xl0) +
+                                 (zl-zl0)*(zl-zl0) +
+                                 (yl-yl0)*(yl-yl0)) <
+                            dev_thresh & !done1) {
+                            // If Euclidean distance is less than
+                            // the threshold value, consider
+                            // returned
+                             marker1_l++;
+                        }
+                        break;
+                    case 12 : // Sum up the distance to the initial point
+                        marker1_l = marker1_l + 
+                                    sqrt((xl-xl0)*(xl-xl0) +
+                                         (zl-zl0)*(zl-zl0) +
+                                         (yl-yl0)*(yl-yl0));
                         break;
                 }
             }
@@ -268,7 +289,8 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
             yl =   yl * dev_Ca  -  xl * dev_Sa;
             xl = temp * dev_Sa  +  xl * dev_Ca;
             
-            // Flip the point over if it went past the edge (periodic boundary)
+            // Flip the point over if it went past the edge
+            // (periodic boundary)
             if (yl*temp < 0) {
                 yl = -yl;
                 xl = -xl;
@@ -290,20 +312,22 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
                         marker2_l++;
                     }
                     break;
-                case 2 : // Iteration where point returns to initial position
-                    if (sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) + (yl-yl0)*(yl-yl0)) < dev_thresh & !done2) {
+                case 2 : // Iteration where point returns to 
+                         // initial position
+                    if (sqrt((xl-xl0)*(xl-xl0) + 
+                             (zl-zl0)*(zl-zl0) + 
+                             (yl-yl0)*(yl-yl0)) < 
+                        dev_thresh & !done2) {
                         marker2_l = k+1;
                         done2 = 1;
-                        //done1 = 1;
                     }
                     break;
-                case 3 : // Anglular position of interaction with boundary
+                case 3 : // Anglular position of interaction with
+                         // boundary
                     if (abs(yl) < dev_thresh & !done2) {
                         temp = 0.5*(zl/(sqrt(xl*xl + zl*zl)) + 1);
-                        marker2_l = (temp > marker2_l) ? marker2_l : temp;
-                        // marker2_l += 0.5*(sin(atan2(zl,xl)) + 1);
-                        // count2 += 1;
-                        // done2 = 1;
+                        marker2_l = (temp > marker2_l) ?
+                                    marker2_l : temp;
                     }
                     break;
                 case 4 : // Distance to boundary
@@ -325,19 +349,31 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
                     }
                     break;
                 case 9 : // min dist to cutting line
-                    marker2_l = (asin(abs(yl)) < marker2_l) ? asin(abs(yl)) : marker2_l;
+                    marker2_l = (asin(abs(yl)) < marker2_l) ?
+                                 asin(abs(yl)) : marker2_l;
                     break;
-                case 10 : // Last iteration passing close to the boundary
+                case 10 : // Last iteration passing close to the
+                          // boundary
                     if (abs(yl) < dev_thresh & !done1) {
                         marker2_l = k+1;
                     }
                     break;
                 case 11 : // Count of returns to initial position
-                    // if (sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) + (yl-yl0)*(yl-yl0)) < dev_thresh & !done1) { // If Euclidean distance is less than the threshold value, consider returned
-                    //   marker2_l++;
-                    // }
-                    // Sum up the distance to the initial point
-                    marker2_l = marker2_l + sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) + (yl-yl0)*(yl-yl0));
+                    if (sqrt((xl-xl0)*(xl-xl0) +
+                                (zl-zl0)*(zl-zl0) +
+                                (yl-yl0)*(yl-yl0)) <
+                        dev_thresh & !done1) {
+                        // If Euclidean distance is less than
+                        // the threshold value, consider
+                        // returned
+                        marker2_l++;
+                    }
+                    break;
+                case 12 : // Sum up the distance to the initial point
+                    marker2_l = marker2_l + 
+                                sqrt((xl-xl0)*(xl-xl0) +
+                                        (zl-zl0)*(zl-zl0) +
+                                        (yl-yl0)*(yl-yl0));
                     break;
             }
         }
@@ -367,9 +403,10 @@ __global__ void rotate(int t, double* x, double* z, double* marker1, double* mar
 /*
 void init_data(double*x, double* z)
 
-This function puts the initial positions into the global memory blocks being used.
-Points are seeded as two vectors, values are picked from these when they need to be
-accessed in the rotation function.
+This function puts the initial positions into the global memory
+blocks being used. Points are seeded as two vectors, values are
+picked from these when they need to be accessed in the rotation
+function.
 
 Inputs:
     double* x, z        Arrays for initial conditions storage
@@ -382,10 +419,14 @@ __global__ void init_new(double* x, double* z) {
   // Get the global index
   int gi = threadIdx.x + blockIdx.x * blockDim.x;
 
-  if (gi < dev_res){ // Protect memory outside of initialization
-    // Starting at the left edge, add half a pixel and then the rest to get into position
-    x[gi] = dev_xcenter - dev_spread + (dev_spread/dev_res) + gi*(2*dev_spread/dev_res);
-    z[gi] = dev_zcenter - dev_spread + (dev_spread/dev_res) + gi*(2*dev_spread/dev_res);
+  if (gi < dev_res){ // Protect memory outside of
+                     // initialization
+    // Starting at the left edge, add half a pixel and then the
+    // rest to get into position
+    x[gi] = dev_xcenter - dev_spread +
+            (dev_spread/dev_res) + gi*(2*dev_spread/dev_res);
+    z[gi] = dev_zcenter - dev_spread +
+            (dev_spread/dev_res) + gi*(2*dev_spread/dev_res);
   }
 }
 
@@ -394,15 +435,18 @@ __global__ void init_new(double* x, double* z) {
 /*
 int main(int argc, char* argv[])
 
-The main program executes a point rotation over a hemisphere with periodic boundary conditions.
+The main program executes a point rotation over a hemisphere with
+periodic boundary conditions.
 
 Inputs:
-    input filename   The input file for heat which contains all of the input data
+    input filename   The input file for heat which contains all of
+                     the input data
     output filename  The output file containing N, T, x, y, and z
 
 Outputs:
     int              The main program returns 0 if sucessful
-    output file      The output file contains information about the run and requested data
+    output file      The output file contains information about the
+                     run and requested data
 
 Console Outputs:
     N  =  ... points
@@ -419,9 +463,9 @@ Console Outputs:
 
 
 int main(int argc, char* argv[]) {
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////
     // Setup
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////
     // Begin timing the computation
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -430,23 +474,25 @@ int main(int argc, char* argv[]) {
 
     // Choose the GPU card (on ESAM Kepler or Tesla)
     cudaDeviceProp prop;
-    int dev;
-    memset(&prop, 0, sizeof(cudaDeviceProp));
-    prop.multiProcessorCount = 13;
-    cudaChooseDevice(&dev, &prop);
+    int dev = 0;
+    // memset(&prop, 0, sizeof(cudaDeviceProp));
+    // prop.multiProcessorCount = 13;
+    // cudaChooseDevice(&dev, &prop);
     cudaSetDevice(dev);
 
     // Get the maximum thread count for the device
     cudaGetDeviceProperties(&prop, dev);
     int num_threads = prop.maxThreadsPerBlock;
 
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////
     // Input
-    ////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////
     // Open the input file on the host
     // Check if the inputs to the program are correct
     if (argc > 3 ) {
-        printf ("Incorrect usage: only enter the input data file name and output data file name\n") ;
+        printf ("Incorrect usage: only enter the input "
+                "data file name and output data file "
+                "name\n") ;
         return 0;
     }
     
@@ -457,7 +503,8 @@ int main(int argc, char* argv[]) {
         printf("Unable to open input file\n");
         return 0;
     }
-    // N points, T iterations, Do a projection or not, Do a halfiteration or not
+    // N points, T iterations, Do a projection or not, Do a
+    // halfiteration or not
     int N, T, res, projection, histogram, half_iter;
     // Initalize beta, alpha, gamma, deltatheta doubles
     double beta, alpha, gamma, spread, xcenter, zcenter, line;
@@ -470,28 +517,45 @@ int main(int argc, char* argv[]) {
     " [Beta] %lf"
     " [Gamma] %lf"
     " [Output Resolution] %d"
-    " [Projection: 0 - Orthographic, 1 - Stereographic, 2 - Lambert EA, 3 - Gnomonic, 4 - Square Lambert] %d"
+    " [Projection: 0 - Orthographic,"
+    " 1 - Stereographic, 2 - Lambert EA,"
+    " 3 - Gnomonic, 4 - Square Lambert] %d"
     " [Spread] %lf"
     " [x Center] %lf"
     " [z Center] %lf"
     " [Line Thickness] %lf"
-    " [Output Data: 0 - Initial cuts, 1 - Stacked cuts, 2 - First return iter, 3 - Boundary location of initial cut, 4 - Stacked distance to boundary, 5 - Stacked location, 6 - Final location, 8 - Just Coverage, 9 - Minimum distance to cut] %d"
+    " [Output Data: 0 - Initial cuts,"
+    " 1 - Stacked cuts, 2 - First return iter,"
+    " 3 - Boundary location of initial cut,"
+    " 4 - Stacked distance to boundary,"
+    " 5 - Stacked location, 6 - Final location,"
+    " 8 - Just Coverage, 9 - Minimum distance to cut] %d"
     " [Half iter] %d",
     &T, &alpha, &beta, &gamma, &res, &projection, &spread, &xcenter,
     &zcenter, &line, &histogram, &half_iter);
 
-    // Print information to console for debugging, should be identical to input file
+    // Print information to console for debugging, should be
+    // identical to input file
     printf("[Number of Iterations] %d \n", T);
     printf("[Alpha] %lf  \n", alpha);
     printf("[Beta] %g  \n", beta);
     printf("[Gamma] %g  \n", gamma);
     printf("[Output Resolution] %d  \n", res);
-    printf("[Projection: 0 - Orthographic, 1 - Stereographic, 2 - Lambert EA, 3 - Gnomonic, 4 - Square Lambert] %d  \n", projection);
+    printf("[Projection: 0 - Orthographic,"
+           " 1 - Stereographic, 2 - Lambert EA,"
+           " 3 - Gnomonic,"
+           " 4 - Square Lambert] %d  \n", projection);
     printf("[Spread] %g \n", spread);
     printf("[x Center] %g \n", xcenter);
     printf("[z Center] %lf \n", zcenter);
     printf("[Line Thickness] %lf \n", line);
-    printf("[Output Data: 0 - Initial cuts, 1 - Stacked cuts, 2 - First return iter, 3 - Boundary location of initial cut, 4 - Stacked distance to boundary, 5 - Stacked location, 6 - Final location, 8 - Just Coverage, 9 - minimum distance to cut] %d \n", histogram);
+    printf("[Output Data: 0 - Initial cuts,"
+           " 1 - Stacked cuts, 2 - First return iter,"
+           " 3 - Boundary location of initial cut,"
+           " 4 - Stacked distance to boundary,"
+           " 5 - Stacked location, 6 - Final location,"
+           " 8 - Just Coverage,"
+           " 9 - minimum distance to cut] %d \n", histogram);
 
     beta = beta/180*M_PI;        // Convert to radians
     alpha = alpha/180*M_PI;        // Convert to radians
@@ -502,11 +566,11 @@ int main(int argc, char* argv[]) {
 
 
     N = res*res;
-    //double thresh = line*spread / res;
     double thresh = line;
-    // For a full Lambert equal area azimuthal projection, the line threshold should
-    // be (5/4)*sqrt(2) to accomodate for the distortion at the border and allow for
-    // continuous lines
+    //double thresh = line*spread / res;
+    // For a full Lambert equal area azimuthal projection, the line
+    // threshold should be (5/4)*sqrt(2) to accomodate for the
+    // distortion at the border and allow for continuous lines
 
     // Calculate the required number of blocks for initialization
     int num_blocks = (res)/num_threads + ((res)%num_threads ? 1 : 0);
@@ -528,9 +592,9 @@ int main(int argc, char* argv[]) {
     int outside = 0;
     //int half_iter = 1;
 
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////
     // Memory
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////
     // Copy constants into constant memory
     cudaMemcpyToSymbol(dev_N,         &N,         sizeof(int));
     cudaMemcpyToSymbol(dev_T,         &T,         sizeof(int));
@@ -551,16 +615,17 @@ int main(int argc, char* argv[]) {
     // Allocate memory on the host
     double* x = (double*)malloc(res * sizeof(double));
     double* z = (double*)malloc(res * sizeof(double));
-    double* marker1 = (double*)malloc(res * res * sizeof(double));         // One color
-    double* marker2 = (double*)malloc(res * res * sizeof(double));         // The other color
+    // Two registers, one for each color (blue, red)
+    double* marker1 = (double*)malloc(res * res * sizeof(double));
+    double* marker2 = (double*)malloc(res * res * sizeof(double));
 
     // Allocate memory on the device
     double* dev_x;
     double* dev_z;
     double* dev_marker1;
     double* dev_marker2;
-    int* dev_phi;
-    int* dev_outside;
+    int* dev_phi;     // Coverage (integer number)
+    int* dev_outside; // Number of points in grid outside unit circle
 
     // Make sure to check that allocation has no errors
     int err = cudaMalloc((void**)&dev_x,       res*sizeof(double));
@@ -583,33 +648,42 @@ int main(int argc, char* argv[]) {
     cudaMemset(dev_outside, 0, sizeof(int));
 
 
-    //////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////
     // Initial Conditions (x and z grid values)
-    //////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////
     init_new<<<num_blocks,num_threads>>>(dev_x,dev_z);
     cudaError_t err2 = cudaGetLastError();
     if (err2 != cudaSuccess) 
         printf("Error: %s\n", cudaGetErrorString(err2));
 
-    //////////////////////////////////////////////////////////////////////////////
+    ///////////
     // Rotation
-    //////////////////////////////////////////////////////////////////////////////
-    rotate<<<num_bigblocks,num_threads>>>(T,dev_x,dev_z, dev_marker1, dev_marker2, projection, dev_phi, dev_outside);
+    ///////////
+    rotate<<<num_bigblocks,num_threads>>>(T,dev_x,dev_z,
+                                          dev_marker1, dev_marker2,
+                                          projection, dev_phi,
+                                          dev_outside);
     err2 = cudaGetLastError();
     if (err2 != cudaSuccess) 
         printf("Error: %s\n", cudaGetErrorString(err2));
 
 
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////
     // Collect data on host and clean up
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////
     // Copy memory from the device to the host
-    cudaMemcpy(x,       dev_x,       res*sizeof(double),     cudaMemcpyDeviceToHost);
-    cudaMemcpy(z,       dev_z,       res*sizeof(double),     cudaMemcpyDeviceToHost);
-    cudaMemcpy(marker1, dev_marker1, res*res*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(marker2, dev_marker2, res*res*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&phi,    dev_phi,     sizeof(int),            cudaMemcpyDeviceToHost);
-    cudaMemcpy(&outside,dev_outside, sizeof(int),            cudaMemcpyDeviceToHost);
+    cudaMemcpy(x,       dev_x,       res*sizeof(double),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(z,       dev_z,       res*sizeof(double),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(marker1, dev_marker1, res*res*sizeof(double),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(marker2, dev_marker2, res*res*sizeof(double),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(&phi,    dev_phi,     sizeof(int),
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(&outside,dev_outside, sizeof(int),
+               cudaMemcpyDeviceToHost);
 
     // Zero out data on the device
     cudaMemset(dev_marker1,0,res*res*sizeof(double));
@@ -630,7 +704,9 @@ int main(int argc, char* argv[]) {
     fwrite(&spread,    sizeof(double), 1,       outputfile);
     fwrite(&histogram, sizeof(int),    1,       outputfile);
     fwrite(&thresh,    sizeof(double), 1,       outputfile);
-    if (histogram != 8) { // Histogram == 8 implies we only want the value of the coverage
+    if (histogram != 8) {
+        // Histogram == 8 implies we only want the value of the
+        // coverage
         fwrite(marker1,    sizeof(double), res*res, outputfile);
         fwrite(marker2,    sizeof(double), res*res, outputfile);
         fwrite(x,          sizeof(double), res,     outputfile);

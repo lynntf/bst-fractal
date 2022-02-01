@@ -8,7 +8,8 @@
 90
 [Output Resolution]
 2000
-[Projection: 0 - Orthographic, 1 - Stereographic, 2 - Lambert EA, 3 - Gnomonic, 4 - Square Lambert]
+[Projection: 0 - Orthographic, 1 - Stereographic,
+ 2 - Lambert EA, 3 - Gnomonic, 4 - Square Lambert]
 2
 [Spread]
 1
@@ -18,7 +19,11 @@
 0
 [Line Thickness]
 0.001
-[Output Data: 0 - Initial cuts, 1 - Stacked cuts, 2 - First return iter, 3 - Boundary location of initial cut, 4 - Stacked distance to boundary, 5 - Stacked location, 6 - Final location, 8 - Just Coverage, 9 - Minimum distance to cut]
+[Output Data: 0 - Initial cuts, 1 - Stacked cuts,
+ 2 - First return iter, 3 - Boundary location of initial cut,
+ 4 - Stacked distance to boundary, 5 - Stacked location,
+ 6 - Final location, 8 - Just Coverage,
+ 9 - Minimum distance to cut]
 1
 [Half iter]
 0
