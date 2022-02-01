@@ -1,8 +1,8 @@
 coverage: coverage.o
-	nvcc -o coverage_exe -arch sm_35 coverage.o
+	nvcc -o coverage_exe coverage.o
 
 coverage.o: coverage.cu
-	nvcc -c -arch sm_35 coverage.cu
+	nvcc -c coverage.cu
 
 clean:
 	-rm coverage
