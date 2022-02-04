@@ -1,5 +1,5 @@
 coverage: coverage.o
-	nvcc -o coverage_exe coverage.o
+	nvcc -o coverage coverage.o
 
 coverage.o: coverage.cu
 	nvcc -c coverage.cu
