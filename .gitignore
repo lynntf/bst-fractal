@@ -1,6 +1,5 @@
-coverage_github.cu
-invariant_sets*
-is.cu
-phasespace*
-traj*
+*github*
+i*
+p*
+t*
 .vscode
