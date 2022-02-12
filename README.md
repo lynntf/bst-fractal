@@ -82,26 +82,26 @@ particularly challenging, but is not implemented here.
 The program supports various projections from the seeded 2D plane to the
 hemisphere. The available projections are:
 
-    0. [*Orthographic*](https://en.wikipedia.org/wiki/Orthographic_projection):
+    * 0: [*Orthographic*](https://en.wikipedia.org/wiki/Orthographic_projection):
     This is a straight on projection from $-y$. Points on the hemisphere have
     their $y$ coordinate ignored and are projected onto the $xz$-plane. This is
     the perspective from $y = -\infty$.
-    1. [*Stereographic*](https://en.wikipedia.org/wiki/Stereographic_projection):
+    * 1: [*Stereographic*](https://en.wikipedia.org/wiki/Stereographic_projection):
     This is a projection to the $xz$-plane from the perspective of $(x,y,z) =
     (0,1,0)$. This conformal projection preserves circles on the hemisphere but
     distorts area radially (area increases radially).
-    2. [*Lambert azimuthal
+    * 2: [*Lambert azimuthal
     equal-area*](https://en.wikipedia.org/wiki/Lambert_azimuthal_equal-area_projection):
     This projection preserves area (the program scales the area by a factor of
     $\sqrt{2}$). This projection should be used if area is being measured or the
     entire hemisphere should be shown without distorting area. This projection
     distorts more radially.
-    3. [*Gnomonic*](https://en.wikipedia.org/wiki/Gnomonic_projection): Neither
+    * 3: [*Gnomonic*](https://en.wikipedia.org/wiki/Gnomonic_projection): Neither
     area-preserving nor conformal, this projection cannot show the entire
     hemisphere but has the property that great circle arcs become straight
     lines. Since all cutting lines in the PWI are great circle arcs, this can be
     a nice feature.
-    4. *Square Lambert (not implemented)*: Applies a transformation from the
+    * 4: *Square Lambert (not implemented)*: Applies a transformation from the
     square to the unit circle ([Shirley
     1997](https://doi.org/10.1080/10867651.1997.10487479)) before applying the
     Lambert EA projection. Intended to utilize the entire rectangular grid.
@@ -124,65 +124,54 @@ set. This determines how close points need to be to be considered "cut", or
 The program can output various metrics (some unlisted because they are not
 useful) on the exceptional set as it is calculated:
 
-    0. The program records the iteration number at which a seed point first
+    * 0: The program records the iteration number at which a seed point first
     passes within $\varepsilon$ of a the equator $y = 0$ (which generates
     cutting lines). Depending on which rotation this occurs on, the iteration
     number is stored in one of two arrays such that the first encounter with
     each cutting line is stored separately.
-
-    1. The program counts the number of encounters (passing within $\varepsilon$
-    of the equator) with each cutting line and stores them in two arrays, one
-    for each cutting line. This is how cutting line density is computed.
-
-    2. The program records the iteration number at which the seeded point passes
-    within $\varepsilon$ of its initial position in the first array. The second
-    array currently stores the iteration number at which a point returns to its
-    initial position after only one of the two axial rotations (half iteration),
-    but this currently has no meaningful use.
-
-    3. The program records the largest $z$ value in the $xz$-plane at which a
+    * 1: The program counts the number of encounters (passing within
+    $\varepsilon$ of the equator) with each cutting line and stores them in two
+    arrays, one for each cutting line. This is how cutting line density is
+    computed.
+    * 2: The program records the iteration number at which the seeded point
+    passes within $\varepsilon$ of its initial position in the first array. The
+    second array currently stores the iteration number at which a point returns
+    to its initial position after only one of the two axial rotations (half
+    iteration), but this currently has no meaningful use.
+    * 3: The program records the largest $z$ value in the $xz$-plane at which a
     point first encounters the equator (post processed to an angular position
     using $\arcsin(2z -1)$; cutting lines are not sided here). The goal of this
     measurement is to reveal invariant sets along the equator, but this data is
     not refined.
-
-    4. The program calculates the distance to the equator after each cut and
+    * 4: The program calculates the distance to the equator after each cut and
     accumulates this distance. The two cuts are again stored in different
     arrays. This measurement, when divided by the number of iterations will
     provide the average distance from each of the cutting lines for points
     throughout the domain. This can  potentially be used to show invariant sets
     and mixing.
-
-    5. The program accumulates the $x$ and $z$ coordinates. When divided by the
-    number of iterations, this gives and average x and z coordinate for the seed
-    point. This is only done after each full iteration.
-
-    6. The program only records the final $x$ and $z$ coordinates of the seeded
-    point. This produces a map between initial and final locations that can be
-    used to mix an initial condition.
-
-    7. *unlisted* The program records how many times the point has passed
+    * 5: The program accumulates the $x$ and $z$ coordinates. When divided by
+    the number of iterations, this gives and average x and z coordinate for the
+    seed point. This is only done after each full iteration.
+    * 6: The program only records the final $x$ and $z$ coordinates of the
+    seeded point. This produces a map between initial and final locations that
+    can be used to mix an initial condition.
+    * 7: *unlisted* The program records how many times the point has passed
     through the infinitely thin flowing layer (ITFL; periodic equator) after
     each rotation. This reveals almost no information at all since, on average,
     every point passes through the ITFL the same amount of times.
-
-    8. Just returns the value of coverage, $\Phi$. Does not utilize the two
+    * 8: Just returns the value of coverage, $\Phi$. Does not utilize the two
     register variables and reduces file size. Coverage can be computed from
     other outputs so only use for data savings.
-
-    9. Minimum distance to each of the two cutting lines over the course of a
+    * 9: Minimum distance to each of the two cutting lines over the course of a
     trajectory. For points in the exceptional set, this tends to zero as more
     iterations are computed. Values are initialized at 10, so points falling
     outside the range of the unit circle will have minimum distance of 10.
-
-    10. *unlisted* Records the last iteration that the point returns to the
+    * 10: *unlisted* Records the last iteration that the point returns to the
     cutting line. Does not reveal anything particularly interesting.
-
-    11. *unlisted* Counts the number of returns within $\varepsilon$ of the
+    * 11: *unlisted* Counts the number of returns within $\varepsilon$ of the
     initial location. Again, returns for the half iteration are computed, but
     are currently meaningless.
-
-    12. *unlisted* Accumulation of distances to the initial point. Does not
+    * 12: *unlisted* Accumulation of distances to the initial point. Does not
     reveal much of anything.
 
 ## Output file structure:
