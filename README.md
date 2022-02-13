@@ -1,6 +1,17 @@
 # Construction of the Exceptional Set for the BST PWI fractal
 *By Thomas Lynn, Northwestern University*
 ***
+Developed in conjunction with the following papers:
+* P. P. Park, T. F. Lynn, P. B. Umbanhowar, J. M. Ottino, and R. M. Lueptow.
+*Mixing and the fractal geometry of piecewise isometries*. Phys Rev E, 95:042208,
+Apr. 2017. doi:[10.1103/PhysRevE.95.042208](https://doi.org/10.1103/PhysRevE.95.042208).
+* T. F. Lynn, L. D. Smith, J. M. Ottino, P. B. Umbanhowar, and R. M. Lueptow.
+*Cutting and shuffling a hemisphere: Nonorthogonal axes*. Phys Rev E, 99:032204,
+Mar. 2019. doi:[10.1103/PhysRevE.99.032204](https://doi.org/10.1103/PhysRevE.99.032204).
+* T. F. Lynn, J. M. Ottino, P. B. Umbanhowar, and R. M. Lueptow.
+*Identifying invariant ergodic subsets and barriers to mixing by cutting and shuffling: Study in a birotated hemisphere*.
+Phys Rev E, 101:012204, Jan. 2020.
+doi:[10.1103/PhysRevE.101.012204](https://doi.org/10.1103/PhysRevE.101.012204).
 
 ## Purpose of the program:
 Fractal generation for the cut-and-shuffle model (piecewise isometry, PWI) of
@@ -206,3 +217,9 @@ The output file is binary data of the following structure in order:
 ## Output post processing:
 
 MATLAB scripts are used to process raw data.
+
+## Support
+
+The development of the *bst-fractal* program was supported by the [US National
+Science Foundation](http://www.nsf.gov/) under grant
+[CMMI-1435065](https://www.nsf.gov/awardsearch/showAward?AWD_ID=1435065).
