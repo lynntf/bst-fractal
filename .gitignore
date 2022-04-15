@@ -4,3 +4,11 @@ p*
 t*
 .vscode
 *.txt
+*.o
+*.exe
+*.exp
+*.lib
+*.obj
+*.out
+.vs
+coverage
