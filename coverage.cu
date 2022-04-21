@@ -126,8 +126,28 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                 zl = cos(phi_g)*sin(lamb);
                 break;
             case 4 :
-                // Square lambert projection
-                // Not implemented here
+                // Square to disk projection due to Shirely (1997)
+                double r = -zl;
+                double phi = 0;
+                if ((xl > -zl) && (xl > zl)) { // Region 1
+                    r = xl;
+                    phi = M_PI/4.0 * (zl/xl);
+                } else if ((xl > -zl) && (xl <= zl)) { // Region 2
+                    r = zl;
+                    phi = M_PI/4.0 * (2 - (xl/zl));
+                } else if ((xl <= -zl) && (xl < zl)) { // Region 3
+                    r = -xl;
+                    phi = M_PI/4.0 * (4 + (zl/xl));
+                } else if ((xl <= -zl) && (xl >= zl && (zl != 0)) { // Region 4
+                    r = -zl;
+                    phi = M_PI/4.0 * (6 - (xl/zl));
+                }
+                xl = r * cos(phi);
+                zl = r * sin(phi);
+                // Lambert equal-area projection
+                xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
+                zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
+                break;
         }
         
         // Calculate the initial y-value
