@@ -136,9 +136,6 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         double xl0 = xl;
         double zl0 = zl;
         double yl0 = yl;
-        // Initialize two counters
-        int count1 = 0;
-        int count2 = 0;
 
         /////////////////////////////////////////////////////////////
         // What information to output (initial values for some cases)
