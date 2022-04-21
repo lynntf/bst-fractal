@@ -556,6 +556,7 @@ int main(int argc, char* argv[]) {
            " 5 - Stacked location, 6 - Final location,"
            " 8 - Just Coverage,"
            " 9 - minimum distance to cut] %d \n", histogram);
+    printf("[Half iter] %d \n", half_iter);
 
     beta = beta/180*M_PI;        // Convert to radians
     alpha = alpha/180*M_PI;        // Convert to radians
@@ -690,7 +691,7 @@ int main(int argc, char* argv[]) {
     cudaMemset(dev_marker2,0,res*res*sizeof(double));
 
     // Open the output file on the host
-    FILE* outputfile = fopen(argv[2],"w");
+    FILE* outputfile = fopen(argv[2],"wb");
 
     // Write information to the outputfile
     fwrite(&N,         sizeof(int),    1,       outputfile);
