@@ -138,7 +138,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                 } else if ((xl <= -zl) && (xl < zl)) { // Region 3
                     r = -xl;
                     phi = M_PI/4.0 * (4 + (zl/xl));
-                } else if ((xl <= -zl) && (xl >= zl && (zl != 0)) { // Region 4
+                } else if ((xl <= -zl) && (xl >= zl) && (zl != 0)) { // Region 4
                     r = -zl;
                     phi = M_PI/4.0 * (6 - (xl/zl));
                 }
