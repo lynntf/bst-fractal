@@ -87,18 +87,6 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         double marker1_l = 0;
         double marker2_l = 0;
 
-        // Remove points that are outside the domain
-        int outside = 0;
-        if (xl*xl + zl*zl >1) {
-            done1 = 1;
-            done2 = 1;
-            outside = 1;
-            if (dev_histogram == 8) { // Count the number of grid
-                                      // points inside unit circle
-                atomicAdd(used,1);
-            }
-        }
-
         ///////////////////////////////////////////////
         // Project from the flat grid to the hemisphere
         ///////////////////////////////////////////////
@@ -148,6 +136,18 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                 xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
                 zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
                 break;
+        }
+        
+        // Remove points that are outside the domain
+        int outside = 0;
+        if (xl*xl + zl*zl >1) {
+            done1 = 1;
+            done2 = 1;
+            outside = 1;
+            if (dev_histogram == 8) { // Count the number of grid
+                                      // points inside unit circle
+                atomicAdd(used,1);
+            }
         }
         
         // Calculate the initial y-value
