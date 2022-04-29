@@ -1,9 +1,9 @@
 [Number of Iterations]
-100000
+1000
 [Alpha]
-45
+57
 [Beta]
-45
+57
 [Gamma]
 90
 [Output Resolution]
@@ -14,9 +14,9 @@
 [Spread]
 1
 [x Center]
-0
+0.0
 [z Center]
-0
+0.0
 [Line Thickness]
 0.001
 [Output Data: 0 - Initial cuts, 1 - Stacked cuts,
@@ -24,6 +24,6 @@
  4 - Stacked distance to boundary, 5 - Stacked location,
  6 - Final location, 8 - Just Coverage,
  9 - Minimum distance to cut]
-1
+9
 [Half iter]
 0
