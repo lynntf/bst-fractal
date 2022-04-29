@@ -86,18 +86,9 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
 
         double marker1_l = 0;
         double marker2_l = 0;
-
+        
         // Remove points that are outside the domain
         int outside = 0;
-        if (xl*xl + zl*zl >1) {
-            done1 = 1;
-            done2 = 1;
-            outside = 1;
-            if (dev_histogram == 8) { // Count the number of grid
-                                      // points inside unit circle
-                atomicAdd(used,1);
-            }
-        }
 
         ///////////////////////////////////////////////
         // Project from the flat grid to the hemisphere
@@ -106,11 +97,17 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         switch (doprojection){
             case 1 :
                 // Stereographic projection
+                if (xl*xl + zl*zl > 1) {
+                    outside = 1;
+                }
                 xl = 2*xl/(1+ xl*xl+ zl*zl);
                 zl = 2*zl/(1+ temp*temp+ zl*zl);
                 break;
             case 2 :
                 // Lambert equal-area projection
+                if (xl*xl + zl*zl > 1) {
+                    outside = 1;
+                }
                 xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
                 zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
                 break;
@@ -124,10 +121,47 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                 double lamb = atan2(xl*sin(c),(-zl*sin(c)));
                 xl = cos(phi_g)*cos(lamb);
                 zl = cos(phi_g)*sin(lamb);
+                if (xl*xl + zl*zl > 1) {
+                    outside = 1;
+                }
                 break;
             case 4 :
-                // Square lambert projection
-                // Not implemented here
+                // Square to disk projection due to Shirely (1997)
+                double r = -zl;
+                double phi = 0;
+                if ((xl > -zl) && (xl > zl)) { // Region 1
+                    r = xl;
+                    phi = M_PI/4.0 * (zl/xl);
+                } else if ((xl > -zl) && (xl <= zl)) { // Region 2
+                    r = zl;
+                    phi = M_PI/4.0 * (2 - (xl/zl));
+                } else if ((xl <= -zl) && (xl < zl)) { // Region 3
+                    r = -xl;
+                    phi = M_PI/4.0 * (4 + (zl/xl));
+                } else if ((xl <= -zl) && (xl >= zl) && (zl != 0)) { // Region 4
+                    r = -zl;
+                    phi = M_PI/4.0 * (6 - (xl/zl));
+                }
+                xl = r * cos(phi);
+                zl = r * sin(phi);
+                // Remove points that are outside the domain
+                if (xl*xl + zl*zl <= 1) {
+                    outside = 0;
+                }
+                // Lambert equal-area projection
+                xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
+                zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
+                break;
+        }
+        
+        if (outside) {
+            done1 = 1;
+            done2 = 1;
+            outside = 1;
+            if (dev_histogram == 8) { // Count the number of grid
+                                      // points inside unit circle
+                atomicAdd(used,1);
+            }
         }
         
         // Calculate the initial y-value
@@ -136,9 +170,6 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         double xl0 = xl;
         double zl0 = zl;
         double yl0 = yl;
-        // Initialize two counters
-        int count1 = 0;
-        int count2 = 0;
 
         /////////////////////////////////////////////////////////////
         // What information to output (initial values for some cases)
@@ -556,6 +587,7 @@ int main(int argc, char* argv[]) {
            " 5 - Stacked location, 6 - Final location,"
            " 8 - Just Coverage,"
            " 9 - minimum distance to cut] %d \n", histogram);
+    printf("[Half iter] %d \n", half_iter);
 
     beta = beta/180*M_PI;        // Convert to radians
     alpha = alpha/180*M_PI;        // Convert to radians
@@ -690,7 +722,7 @@ int main(int argc, char* argv[]) {
     cudaMemset(dev_marker2,0,res*res*sizeof(double));
 
     // Open the output file on the host
-    FILE* outputfile = fopen(argv[2],"w");
+    FILE* outputfile = fopen(argv[2],"wb");
 
     // Write information to the outputfile
     fwrite(&N,         sizeof(int),    1,       outputfile);

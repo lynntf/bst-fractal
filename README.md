@@ -112,7 +112,7 @@ hemisphere. The available projections are:
     hemisphere but has the property that great circle arcs become straight
     lines. Since all cutting lines in the PWI are great circle arcs, this can be
     a nice feature.
-    * 4: *Square Lambert (not implemented)*: Applies a transformation from the
+    * 4: *Square Lambert*: Applies a transformation from the
     square to the unit circle ([Shirley
     1997](https://doi.org/10.1080/10867651.1997.10487479)) before applying the
     Lambert EA projection. Intended to utilize the entire rectangular grid.
