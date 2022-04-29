@@ -40,6 +40,83 @@ __device__ static double dev_Sg;
 __device__ static double dev_Cg;
 __device__ static int    dev_half_iter;
 
+
+
+ __device__ void project(double* x, double* z, double* y,
+                            int projection, int* ysign) {
+    double xl = *x;
+    double yl = *y;
+    double zl = *z;
+    int ys = *ysign;
+    double temp = xl;
+    double rho, c, phi_g, lamb, r, phi;
+    switch (projection){
+        case 1 :
+            // Stereographic projection
+            if (xl*xl + zl*zl > 1) {
+                ys = 1;
+            }
+            xl = 2*xl/(1+ xl*xl+ zl*zl);
+            zl = 2*zl/(1+ temp*temp+ zl*zl);
+            break;
+        case 2 :
+            // Lambert equal-area projection
+            if (xl*xl + zl*zl > 1) {
+                ys = 1;
+            }
+            xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
+            zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
+            break;
+        case 3 :
+            // Gnomonic projection
+            xl = xl*5;
+            zl = zl*5;
+            rho = sqrt(xl*xl + zl*zl);
+            c = atan(rho);
+            phi_g = asin(cos(c));
+            lamb = atan2(xl*sin(c),(-zl*sin(c)));
+            xl = cos(phi_g)*cos(lamb);
+            zl = cos(phi_g)*sin(lamb);
+            if (xl*xl + zl*zl > 1) {
+                ys = 1;
+            }
+            break;
+        case 4 :
+            // Square to disk projection due to Shirely (1997)
+            r = -zl;
+            phi = 0;
+            if ((xl > -zl) && (xl > zl)) { // Region 1
+                r = xl;
+                phi = M_PI/4.0 * (zl/xl);
+            } else if ((xl > -zl) && (xl <= zl)) { // Region 2
+                r = zl;
+                phi = M_PI/4.0 * (2 - (xl/zl));
+            } else if ((xl <= -zl) && (xl < zl)) { // Region 3
+                r = -xl;
+                phi = M_PI/4.0 * (4 + (zl/xl));
+            } else if ((xl <= -zl) && (xl >= zl) && (zl != 0)) { // Region 4
+                r = -zl;
+                phi = M_PI/4.0 * (6 - (xl/zl));
+            }
+            xl = r * cos(phi);
+            zl = r * sin(phi);
+            // Remove points that are outside the domain
+            if (xl*xl + zl*zl <= 1) {
+                ys = 0;
+            }
+            // Lambert equal-area projection
+            xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
+            zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
+            break;
+    }
+    *x = xl;
+    *y = yl;
+    *z = zl;
+    *ysign = ys;
+}
+
+
+
 /*
 void rotate(int t, double* x, double* y, double* z,
             double* marker1, double* marker2,
@@ -80,6 +157,8 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         // Store local copies of z and y
         double xl = x[gi/dev_res];
         double zl = z[gi%dev_res];
+        double yl;
+        double temp;
         int done1 = 0;
         int done2 = 0;
         int flip = 0;
@@ -88,76 +167,16 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         double marker2_l = 0;
         
         // Remove points that are outside the domain
-        int outside = 0;
+        int ysign = -1;
 
         ///////////////////////////////////////////////
         // Project from the flat grid to the hemisphere
         ///////////////////////////////////////////////
-        double temp = xl;
-        switch (doprojection){
-            case 1 :
-                // Stereographic projection
-                if (xl*xl + zl*zl > 1) {
-                    outside = 1;
-                }
-                xl = 2*xl/(1+ xl*xl+ zl*zl);
-                zl = 2*zl/(1+ temp*temp+ zl*zl);
-                break;
-            case 2 :
-                // Lambert equal-area projection
-                if (xl*xl + zl*zl > 1) {
-                    outside = 1;
-                }
-                xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
-                zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
-                break;
-            case 3 :
-                // Gnomonic projection
-                xl = xl*5;
-                zl = zl*5;
-                double rho = sqrt(xl*xl + zl*zl);
-                double c = atan(rho);
-                double phi_g = asin(cos(c));
-                double lamb = atan2(xl*sin(c),(-zl*sin(c)));
-                xl = cos(phi_g)*cos(lamb);
-                zl = cos(phi_g)*sin(lamb);
-                if (xl*xl + zl*zl > 1) {
-                    outside = 1;
-                }
-                break;
-            case 4 :
-                // Square to disk projection due to Shirely (1997)
-                double r = -zl;
-                double phi = 0;
-                if ((xl > -zl) && (xl > zl)) { // Region 1
-                    r = xl;
-                    phi = M_PI/4.0 * (zl/xl);
-                } else if ((xl > -zl) && (xl <= zl)) { // Region 2
-                    r = zl;
-                    phi = M_PI/4.0 * (2 - (xl/zl));
-                } else if ((xl <= -zl) && (xl < zl)) { // Region 3
-                    r = -xl;
-                    phi = M_PI/4.0 * (4 + (zl/xl));
-                } else if ((xl <= -zl) && (xl >= zl) && (zl != 0)) { // Region 4
-                    r = -zl;
-                    phi = M_PI/4.0 * (6 - (xl/zl));
-                }
-                xl = r * cos(phi);
-                zl = r * sin(phi);
-                // Remove points that are outside the domain
-                if (xl*xl + zl*zl <= 1) {
-                    outside = 0;
-                }
-                // Lambert equal-area projection
-                xl = sqrt(1.0 - (xl*xl + zl*zl) /2.0 )*xl*sqrt(2.0);
-                zl = sqrt(1.0 - (temp*temp + zl*zl) /2.0 )*zl*sqrt(2.0);
-                break;
-        }
+        project(&xl, &zl, &yl, doprojection, &ysign);
         
-        if (outside) {
+        if (ysign > 0) {
             done1 = 1;
             done2 = 1;
-            outside = 1;
             if (dev_histogram == 8) { // Count the number of grid
                                       // points inside unit circle
                 atomicAdd(used,1);
@@ -165,7 +184,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         }
         
         // Calculate the initial y-value
-        double yl = -sqrt(abs(1 - xl*xl - zl*zl));
+        yl = ysign*sqrt(abs(1 - xl*xl - zl*zl));
         // Initial positions
         double xl0 = xl;
         double zl0 = zl;
@@ -176,18 +195,18 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         /////////////////////////////////////////////////////////////
         switch (dev_histogram) {
             case 0 : // Mark points near the boundary as done
-                if (abs(yl) < dev_thresh & !done2) {
+                if ((abs(yl) < dev_thresh) && (!done2)) {
                     marker2_l = 1;
                     done2 = 1;
                 }
                 break;
             case 1 : // Add one to count of times near the boundary
-                if (abs(yl) < dev_thresh & !outside) {
+                if ((abs(yl) < dev_thresh) && (ysign < 0)) {
                     marker2_l++;
                 }
                 break;
             case 3 : // 
-                if (done1==0) {
+                if (done1 == 0) {
                     marker1_l = 10;
                     marker2_l = 10;
                 }
@@ -202,7 +221,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         ////////////////////////
         int k = 0;
         // k goes from 0 to t-1 as long as one color isn't done
-        for(k = 0; (k < t) & (!done1 | !done2); k++) {
+        for(k = 0; (k < t) && (!done1 | !done2); k++) {
             temp = xl;
             // Rotate the axes back
             xl =   xl * dev_Cg  -  zl * dev_Sg;
@@ -218,10 +237,10 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                 
                 // Flip the point over if it went past the edge (periodic
                 // boundary)
-                if (yl*temp < 0) {
-                yl = -yl;
-                xl = -xl;
-                flip = 1;
+                if (yl * temp < 0) {
+                    yl = -yl;
+                    xl = -xl;
+                    flip = 1;
                 }
 
 
@@ -230,7 +249,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                 /////////////////////////////
                 switch (dev_histogram) {
                     case 0 : // First iteration passing close to boundary
-                        if (abs(yl) < dev_thresh & !done1) {
+                        if ((abs(yl) < dev_thresh) && (!done1)) {
                             marker1_l = k+1;
                             done1 = 1;
                             done2 = 1;
@@ -243,8 +262,8 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                         break;
                     case 2 : // Iteration where point returns to initial
                              // position
-                        if (sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) +
-                            (yl-yl0)*(yl-yl0)) < dev_thresh & !done1) {
+                        if ((sqrt((xl-xl0)*(xl-xl0) + (zl-zl0)*(zl-zl0) +
+                            (yl-yl0)*(yl-yl0)) < dev_thresh) && (!done1)) {
                             // If Euclidean distance is less than
                             // the threshold value, consider
                             // returned
@@ -254,7 +273,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                         break;
                     case 3 : // Anglular position of interaction with
                              // boundary
-                        if (abs(yl) < dev_thresh & !done1) {
+                        if ((abs(yl) < dev_thresh) && (!done1)) {
                             // Check if near the discontinuity
                             temp = 0.5*(zl/(sqrt(xl*xl + zl*zl)) + 1);
                             // Rescale z -> [0,1] and post process
@@ -264,14 +283,14 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                         }
                         break;
                     case 4: // Distance to boundary
-                        marker1_l+= asin(abs(yl));
+                        marker1_l += asin(abs(yl));
                         break;
                     case 7: // Number of flips
                         marker1_l += flip;
                         flip = 0;
                         break;
                     case 8 : // Just coverage
-                        if (abs(yl) < dev_thresh & !done1) {
+                        if ((abs(yl) < dev_thresh) && (!done1)) {
                             atomicAdd(phi, 1);
                             done1 = 1;
                             done2 = 1;
@@ -284,20 +303,20 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
 
                     case 10 : // Last iteration passing close to 
                               // the boundary
-                        if (abs(yl) < dev_thresh & !done1) {
+                        if ((abs(yl) < dev_thresh) && !done1) {
                             marker1_l = k+1;
                         }
                         break;
                 
                     case 11 : // Count of returns to initial position
-                        if (sqrt((xl-xl0)*(xl-xl0) +
+                        if ((sqrt((xl-xl0)*(xl-xl0) +
                                  (zl-zl0)*(zl-zl0) +
                                  (yl-yl0)*(yl-yl0)) <
-                            dev_thresh & !done1) {
+                            dev_thresh) && (!done1)) {
                             // If Euclidean distance is less than
                             // the threshold value, consider
                             // returned
-                             marker1_l++;
+                            marker1_l++;
                         }
                         break;
                     case 12 : // Sum up the distance to the initial point
@@ -333,7 +352,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
             /////////////////////////////
             switch (dev_histogram) {
                 case 0 : // First iteration passing close to boundary
-                    if (abs(yl) < dev_thresh & !done2) {
+                    if ((abs(yl) < dev_thresh) && (!done2)) {
                         marker2_l = k+1;
                         done2 = 1;
                     }
@@ -345,24 +364,24 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                     break;
                 case 2 : // Iteration where point returns to 
                          // initial position
-                    if (sqrt((xl-xl0)*(xl-xl0) + 
+                    if ((sqrt((xl-xl0)*(xl-xl0) + 
                              (zl-zl0)*(zl-zl0) + 
                              (yl-yl0)*(yl-yl0)) < 
-                        dev_thresh & !done2) {
+                        dev_thresh) && (!done2)) {
                         marker2_l = k+1;
                         done2 = 1;
                     }
                     break;
                 case 3 : // Anglular position of interaction with
                          // boundary
-                    if (abs(yl) < dev_thresh & !done2) {
+                    if ((abs(yl) < dev_thresh) && (!done2)) {
                         temp = 0.5*(zl/(sqrt(xl*xl + zl*zl)) + 1);
                         marker2_l = (temp > marker2_l) ?
                                     marker2_l : temp;
                     }
                     break;
                 case 4 : // Distance to boundary
-                    marker2_l+= asin(abs(yl));
+                    marker2_l += asin(abs(yl));
                     break;
                 case 5 : // Stacked x and z locations
                     marker2_l += zl;
@@ -373,7 +392,7 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                     flip = 0;
                     break;
                 case 8 : // Just coverage
-                    if (abs(yl) < dev_thresh & !done1) {
+                    if ((abs(yl) < dev_thresh) && (!done1)) {
                         // int* temp = &dev_phi;
                         atomicAdd(phi, 1);
                         done1 = 1;
@@ -385,15 +404,15 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
                     break;
                 case 10 : // Last iteration passing close to the
                           // boundary
-                    if (abs(yl) < dev_thresh & !done1) {
+                    if ((abs(yl) < dev_thresh) && (!done1)) {
                         marker2_l = k+1;
                     }
                     break;
                 case 11 : // Count of returns to initial position
-                    if (sqrt((xl-xl0)*(xl-xl0) +
+                    if ((sqrt((xl-xl0)*(xl-xl0) +
                                 (zl-zl0)*(zl-zl0) +
                                 (yl-yl0)*(yl-yl0)) <
-                        dev_thresh & !done1) {
+                        dev_thresh) && (!done1)) {
                         // If Euclidean distance is less than
                         // the threshold value, consider
                         // returned
@@ -414,12 +433,12 @@ __global__ void rotate(int t, double* x, double* z, double* marker1,
         //////////////////////////////////
         switch (dev_histogram) {
         case 6 : // Final location
-            if (!outside) {
-            marker1[gi] = xl;
-            marker2[gi] = zl;
+            if (ysign < 0) {
+                marker1[gi] = xl;
+                marker2[gi] = zl;
             } else {
-            marker1[gi] = dev_xcenter - dev_spread;
-            marker2[gi] = dev_zcenter - dev_spread;
+                marker1[gi] = dev_xcenter - dev_spread;
+                marker2[gi] = dev_zcenter - dev_spread;
             }
             break;
 
